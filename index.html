@@ -1,0 +1,188 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <script>
+    (function () {
+        if (location.protocol !== "file:") {
+            return;
+        }
+        var nombre = location.pathname.split("/").pop() || "index.html";
+        location.replace("http://127.0.0.1:8765/" + nombre + location.search + location.hash);
+    })();
+    </script>
+
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Enfermería Robot HUC</title>
+    <meta name="description" content="Apoyo de enfermería en cirugía robótica del Hospital Universitario de Canarias.">
+    <meta name="theme-color" content="#286E6E">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Enfermería Robot HUC">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+    <header class="header-indice">
+        <div class="titulos-barra">
+            <h1>Enfermería Robot HUC</h1>
+            <p>Cuidados de enfermería en cirugía robótica</p>
+        </div>
+    </header>
+
+    <div class="contenedor-cabecera-bloques">
+        <img src="img/robot.png" alt="Robot HUC" class="img-robot-fuera">
+        <div class="columna-buscador">
+            <section class="seccion-buscador">
+                <p class="instruccion-busqueda">Buscar en el texto de TODOS los capítulos del libro</p>
+                <div class="caja-controles-busqueda">
+                    <input type="search" id="buscador-global" placeholder="Escribe un término (ej. posición, grapadora)..." autocomplete="off">
+                    <button type="button" id="btn-ejecutar-buscar" class="btn-buscar">Buscar</button>
+                    <button type="button" id="btn-limpiar-buscar" class="btn-limpiar">Limpiar</button>
+                </div>
+                <div id="aviso-busqueda" class="aviso-busqueda" style="display: none;"></div>
+            </section>
+            <h2 class="titulo-bloques">Bloques</h2>
+        </div>
+    </div>
+
+    <main>
+        <ul class="lista-capitulos">
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 0. Transversales</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=0.%20Transversales/1-PreparacionPaciente.pdf">1. Preparación del paciente</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/2-MandoMesa.pdf">2. Mando de mesa</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/3-ColumnaVision.pdf">3. Columna de visión</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/4-MonitorPantallaTactil.pdf">4. Monitor / pantalla táctil</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/5-UnidadElectroQuirurgica.pdf">5. Unidad electroquirúrgica</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/6-CarroPaciente.pdf">6. Carro del paciente</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/7-VestidoRobot.pdf">7. Vestido del robot</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/8-DesancladoRobot.pdf">8. Desanclado del robot</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/9-GrapadorasAutomaticas.pdf">9. Grapadoras automáticas</a></li>
+                        <li><a href="visor.html?pdf=0.%20Transversales/10-HemostaticosSellantes.pdf">10. Hemostáticos y sellantes</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 1. Anestesia</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=1.%20Anestesia/1-AnestesiaCirugiaRobotica.pdf">1. Anestesia en cirugía robótica</a></li>
+                        <li><a href="visor.html?pdf=1.%20Anestesia/2-CuidadosPacienteCirug%C3%ADaSobreTorax.pdf">2. Cuidados del paciente: cirugía sobre tórax</a></li>
+                        <li><a href="visor.html?pdf=1.%20Anestesia/3-CuidadosPacienteTrendelemburgExtremo.pdf">3. Cuidados del paciente: Trendelenburg extremo</a></li>
+                        <li><a href="visor.html?pdf=1.%20Anestesia/4-MonitorizacionHemodinamicaCirugiaHepatica.pdf">4. Monitorización hemodinámica en cirugía hepática</a></li>
+                        <li><a href="visor.html?pdf=1.%20Anestesia/5-InfusorRapido.pdf">5. Infusor rápido</a></li>
+                        <li><a href="visor.html?pdf=1.%20Anestesia/6-RecuperadorSangre.pdf">6. Recuperador de sangre</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 2. Ginecología</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=2.%20Ginecolog%C3%ADa/1-CirugiaGinecologica.pdf">1. Cirugía ginecológica</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 3. Torácica</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=3.%20Tor%C3%A1cica/1-Bullectormia.pdf">1. Bullectomía</a></li>
+                        <li><a href="visor.html?pdf=3.%20Tor%C3%A1cica/2-DesfiladeroToracico.pdf">2. Desfiladero torácico</a></li>
+                        <li><a href="visor.html?pdf=3.%20Tor%C3%A1cica/3-Timectomia.pdf">3. Timectomía</a></li>
+                        <li><a href="visor.html?pdf=3.%20Tor%C3%A1cica/4-Lobectomia.pdf">4. Lobectomía</a></li>
+                        <li><a href="visor.html?pdf=3.%20Tor%C3%A1cica/5-PlicaturaDiafragmatica.pdf">5. Plicatura diafragmática</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 4. Cirugía General y Digestiva</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/1-AmputacionAbdominoPerineal.pdf">1. Amputación abdominoperineal</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/2-ByPassGastrico.pdf">2. Bypass gástrico</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/3-HerniorrafiaInguinal.pdf">3. Herniorrafia inguinal</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/4-Pancreatectomia.pdf">4. Pancreatectomía</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/5-PatologiaHiatoEsofagico.pdf">5. Patología del hiato esofágico</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/6-Esofaguectomia.pdf">6. Esofaguectomía</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/7-RectoSigmaColonIzquierdo.pdf">7. Recto, sigma y colon izquierdo</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/8-ColonDerecho.pdf">8. Colon derecho</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/9-Gastrectomia.pdf">9. Gastrectomía</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/10-Hepatectomia.pdf">10. Hepatectomía</a></li>
+                        <li><a href="visor.html?pdf=4.%20CirugiaGeneralDigestiva/11-Rectopexia.pdf">11. Rectopexia</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 5. Urología</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/1-Prostata.pdf">1. Próstata</a></li>
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/2-CistectomiaBricker.pdf">2. Cistectomía Bricker</a></li>
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/3-ImplanteRenalDonanteVivo.pdf">3. Implante renal de donante vivo</a></li>
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/4-NefrectomiaParcial.pdf">4. Nefrectomía parcial</a></li>
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/5-NefroureterectomiaConCistectomia.pdf">5. Nefroureterectomía con cistectomía</a></li>
+                        <li><a href="visor.html?pdf=5.%20Urolog%C3%ADa/6-ImplanteUreteroVesical.pdf">6. Implante ureterovesical</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 6. Plan de cuidados</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=6.%20Plan%20de%20cuidados/1-PlanCuidadosEstandarizados.pdf">1. Plan de cuidados estandarizados</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 7. Tecnología</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=7.%20Tecnolog%C3%ADa/1-Telementoria.pdf">1. Telementoría</a></li>
+                        <li><a href="visor.html?pdf=7.%20Tecnolog%C3%ADa/2-RealidadVirtualOnboarding.pdf">2. Realidad virtual / onboarding</a></li>
+                        <li><a href="visor.html?pdf=7.%20Tecnolog%C3%ADa/3-IAcomoTutor.pdf">3. IA como tutor</a></li>
+                    </ul>
+                </details>
+            </li>
+
+            <li class="item-capitulo">
+                <details class="acordeon">
+                    <summary>📂 8. Actividades</summary>
+                    <ul class="lista-enlaces">
+                        <li><a href="visor.html?pdf=8.%20Actividades/1-Practicas.pdf">1. Prácticas</a></li>
+                    </ul>
+                </details>
+            </li>
+</ul>
+
+    </main>
+
+    <footer class="pie-institucional">
+        <div class="bloque-pie-izq">
+            <img src="img/logo-newtekcare.png" alt="NewTekCare" class="logo-pie logo-newtekcare">
+            <img src="img/licCreatCom.png" alt="Creative Commons" class="logo-pie logo-cc">
+        </div>
+    
+        <p class="pie-legal">Copyright © NewTekCare    Actualización 2026</p>
+    
+        <div class="bloque-pie-der">
+            <img src="img/logoCHUC.png" alt="Complejo Hospitalario Universitario de Canarias" class="logo-pie logo-chuc">
+            <img src="img/logoFIISC.png" alt="FIISC, Fundación Canaria Instituto de Investigación Sanitaria de Canarias" class="logo-pie logo-fiisc">
+        </div>
+    </footer>
+
+    <script src="app.js"></script>
+</body>
+</html>

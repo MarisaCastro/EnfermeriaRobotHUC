@@ -1,0 +1,878 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+    <title>Lectura - Enfermería Robot HUC</title>
+    <meta name="theme-color" content="#286E6E">
+    <link rel="stylesheet" href="style.css?v=naranja">
+</head>
+<body class="pagina-visor">
+
+    <header class="header-visor">
+        <a href="index.html" class="btn-volver" id="btn-volver-menu"><span class="flecha-volver" aria-hidden="true">←</span> Menú</a>
+        <h1>Enfermería Robot HUC</h1>
+        <span class="hueco-header"></span>
+    </header>
+
+    <div class="contenedor-visor">
+        <section id="sec-pdf" class="seccion-visor columna-pdf visible">
+            <div class="barra-pdfjs">
+                <button type="button" id="btn-zoom-menos" title="Alejar">−</button>
+                <span id="info-pagina-pdf">—</span>
+                <button type="button" id="btn-zoom-mas" title="Acercar">+</button>
+                <div class="grupo-botones-documento" id="grupo-botones-documento" hidden>
+                    <button type="button" id="btn-doc-principal" hidden>Capítulo</button>
+                    <button type="button" id="btn-doc-guia" hidden>GuíaRápida</button>
+                    <button type="button" id="btn-doc-material" hidden>PeticiónMaterial</button>
+                </div>
+                <input type="search" id="input-busqueda-pdf" placeholder="Buscar en este PDF..." autocomplete="off">
+                <button type="button" id="btn-buscar-pdf">Buscar</button>
+                <button type="button" id="btn-prev-buscar" title="Anterior">▲</button>
+                <span id="contador-busqueda">0/0</span>
+                <button type="button" id="btn-next-buscar" title="Siguiente">▼</button>
+            </div>
+            <div class="lienzo-pdf-wrap" id="lienzo-pdf-wrap">
+                <div id="paginas-pdf" class="paginas-pdf"></div>
+            </div>
+            <iframe id="marco-pdf-nativo" class="marco-pdf-nativo" title="Capítulo" hidden></iframe>
+        </section>
+    </div>
+
+    <script src="js/pdfjs/pdf.min.js"></script>
+    <script>
+        const urlParams = new URLSearchParams(window.location.search);
+        let urlPdf = urlParams.get("pdf");
+        if (urlPdf) {
+            try {
+                localStorage.setItem("ultimoPdf", urlPdf);
+            } catch (error) {
+                /* el navegador no guarda la sesión */
+            }
+        } else {
+            try {
+                urlPdf = localStorage.getItem("ultimoPdf");
+            } catch (error) {
+                urlPdf = null;
+            }
+            if (!urlPdf) {
+                window.location.replace("index.html");
+            }
+        }
+
+        function nombreDelBloque(ruta) {
+            const limpio = (ruta || "").replace(/\\/g, "/").replace(/^\/+/, "").trim();
+            if (!limpio) {
+                return "Enfermería Robot HUC";
+            }
+            let carpeta = limpio.split("/")[0];
+            try {
+                carpeta = decodeURIComponent(carpeta);
+            } catch (error) {
+                /* la carpeta ya viene decodificada */
+            }
+            return carpeta || "Enfermería Robot HUC";
+        }
+
+        function ponerTituloVisor(ruta) {
+            const nombre = nombreDelBloque(ruta);
+            const tituloVisor = document.querySelector(".header-visor h1");
+            if (tituloVisor) {
+                tituloVisor.textContent = nombre;
+            }
+            document.title = nombre + " · Enfermería Robot HUC";
+        }
+
+        if (urlPdf) {
+            ponerTituloVisor(urlPdf);
+        }
+
+        const cajaPaginasPdf = document.getElementById("paginas-pdf");
+        const infoPaginaPdf = document.getElementById("info-pagina-pdf");
+        let pdfDoc = null;
+        let paginaPdfActual = 1;
+        let zoomUsuario = 1;
+        let pintadoId = 0;
+        let textoPorPagina = [];
+        let aciertos = [];
+        let indiceAcierto = 0;
+        const ANCHO_LECTURA = 780;
+        const ZOOM_MIN = 0.5;
+        const ZOOM_MAX = 2.4;
+
+        if (window.pdfjsLib) {
+            pdfjsLib.GlobalWorkerOptions.workerSrc = new URL("js/pdfjs/pdf.worker.min.js", window.location.href).href;
+        }
+
+        function decodificarRutaPdf(valor) {
+            const limpia = String(valor || "").trim().replace(/\\/g, "/").replace(/^\/+/, "");
+            try {
+                return decodeURIComponent(limpia);
+            } catch (error) {
+                return limpia;
+            }
+        }
+
+        function urlDelPdf() {
+            return new URL(encodeURI(decodificarRutaPdf(urlPdf)), window.location.href).href;
+        }
+
+        function abrirEnVisorNativo() {
+            const marco = document.getElementById("marco-pdf-nativo");
+            if (!marco || !urlPdf) {
+                return;
+            }
+            document.body.classList.add("visor-nativo");
+            marco.hidden = false;
+            marco.src = urlDelPdf();
+            avisarPdf("Visor del navegador");
+        }
+
+        function avisarPdf(texto) {
+            if (infoPaginaPdf) {
+                infoPaginaPdf.textContent = texto;
+            }
+        }
+
+        function actualizarInfoZoom() {
+            if (!infoPaginaPdf) {
+                return;
+            }
+            const porciento = Math.round(zoomUsuario * 100);
+            if (pdfDoc) {
+                infoPaginaPdf.textContent = porciento + "% · " + pdfDoc.numPages + " pág.";
+            } else {
+                infoPaginaPdf.textContent = porciento + "%";
+            }
+        }
+
+        function anchoDePagina() {
+            const caja = document.getElementById("lienzo-pdf-wrap");
+            const disponible = Math.max(220, ((caja && caja.clientWidth) ? caja.clientWidth : window.innerWidth) - 28);
+            const base = window.matchMedia("(min-width: 769px)").matches
+                ? Math.min(disponible, ANCHO_LECTURA)
+                : disponible;
+            return base * zoomUsuario;
+        }
+
+        async function pintarTodasLasPaginas() {
+            if (!pdfDoc || !cajaPaginasPdf) {
+                return;
+            }
+            const id = ++pintadoId;
+            const dpr = window.devicePixelRatio || 1;
+            const anchoCss = anchoDePagina();
+            cajaPaginasPdf.innerHTML = "";
+            textoPorPagina = [];
+            avisarPdf("Cargando páginas…");
+            for (let i = 1; i <= pdfDoc.numPages; i++) {
+                if (id !== pintadoId) {
+                    return;
+                }
+                const pagina = await pdfDoc.getPage(i);
+                const vista1 = pagina.getViewport({ scale: 1 });
+                const escalaCss = anchoCss / vista1.width;
+                const viewportCss = pagina.getViewport({ scale: escalaCss });
+                const viewport = pagina.getViewport({ scale: escalaCss * dpr });
+                const contenido = await pagina.getTextContent();
+                textoPorPagina[i] = indexarItems(contenido.items || []);
+
+                const hoja = document.createElement("div");
+                hoja.className = "hoja-pdf";
+                hoja.setAttribute("data-pagina", String(i));
+                hoja.style.width = Math.floor(viewportCss.width) + "px";
+                hoja.style.height = Math.floor(viewportCss.height) + "px";
+                hoja._viewport = viewportCss;
+
+                const canvas = document.createElement("canvas");
+                canvas.className = "pagina-pdf";
+                canvas.setAttribute("data-pagina", String(i));
+                canvas.width = viewport.width;
+                canvas.height = viewport.height;
+                canvas.style.width = Math.floor(viewportCss.width) + "px";
+                canvas.style.height = Math.floor(viewportCss.height) + "px";
+                hoja.appendChild(canvas);
+
+                const capaMarcas = document.createElement("div");
+                capaMarcas.className = "capa-marcas";
+                hoja.appendChild(capaMarcas);
+
+                const capaTexto = document.createElement("div");
+                capaTexto.className = "textLayer";
+                capaTexto.style.setProperty("--scale-factor", String(viewportCss.scale));
+                hoja.appendChild(capaTexto);
+                cajaPaginasPdf.appendChild(hoja);
+
+                await pagina.render({ canvasContext: canvas.getContext("2d"), viewport: viewport }).promise;
+                if (pdfjsLib.renderTextLayer) {
+                    try {
+                        await pdfjsLib.renderTextLayer({
+                            textContentSource: contenido,
+                            container: capaTexto,
+                            viewport: viewportCss
+                        }).promise;
+                    } catch (errorTexto) {
+                        console.warn("Capa de texto:", errorTexto);
+                    }
+                }
+            }
+            if (id === pintadoId) {
+                actualizarInfoZoom();
+                ejecutarBusqueda(false);
+            }
+        }
+
+        function indexarItems(items) {
+            let cadena = "";
+            const mapa = [];
+            items.forEach(function (item, idx) {
+                const texto = item.str || "";
+                for (let k = 0; k < texto.length; k++) {
+                    cadena += texto[k];
+                    mapa.push({ item: idx, offset: k });
+                }
+                if (item.hasEOL) {
+                    cadena += " ";
+                    mapa.push({ item: idx, offset: texto.length, eol: true });
+                }
+            });
+            return { cadena: cadena.toLowerCase(), mapa: mapa, items: items };
+        }
+
+        function rectanguloDeFragmento(viewport, item, desde, hasta) {
+            const transformar = (pdfjsLib.Util && pdfjsLib.Util.transform)
+                ? pdfjsLib.Util.transform
+                : function (m1, m2) {
+                    return [
+                        m1[0] * m2[0] + m1[2] * m2[1],
+                        m1[1] * m2[0] + m1[3] * m2[1],
+                        m1[0] * m2[2] + m1[2] * m2[3],
+                        m1[1] * m2[2] + m1[3] * m2[3],
+                        m1[0] * m2[4] + m1[2] * m2[5] + m1[4],
+                        m1[1] * m2[4] + m1[3] * m2[5] + m1[5]
+                    ];
+                };
+            const tx = transformar(viewport.transform, item.transform);
+            const altura = Math.hypot(tx[2], tx[3]) || (item.height || 0) * viewport.scale;
+            const anchoTotal = (item.width || 0) * viewport.scale;
+            const letras = Math.max((item.str || "").length, 1);
+            const left = tx[4] + anchoTotal * (desde / letras);
+            const width = Math.max(anchoTotal * ((hasta - desde) / letras), 2);
+            return { left: left, top: tx[5] - altura, width: width, height: Math.max(altura, 2) };
+        }
+
+        function actualizarContador() {
+            const contador = document.getElementById("contador-busqueda");
+            if (!contador) {
+                return;
+            }
+            contador.textContent = aciertos.length ? (indiceAcierto + 1) + "/" + aciertos.length : "0/0";
+        }
+
+        function limpiarMarcas() {
+            document.querySelectorAll(".capa-marcas").forEach(function (capa) {
+                capa.innerHTML = "";
+            });
+        }
+
+        function pintarMarcas() {
+            limpiarMarcas();
+            aciertos.forEach(function (acierto, n) {
+                const datos = textoPorPagina[acierto.pagina];
+                const hoja = cajaPaginasPdf.querySelector('.hoja-pdf[data-pagina="' + acierto.pagina + '"]');
+                if (!datos || !hoja || !hoja._viewport) {
+                    return;
+                }
+                const capa = hoja.querySelector(".capa-marcas");
+                let grupo = null;
+                const grupos = [];
+                for (let c = acierto.inicio; c < acierto.fin; c++) {
+                    const marca = datos.mapa[c];
+                    if (!marca || marca.eol) {
+                        grupo = null;
+                        continue;
+                    }
+                    const item = datos.items[marca.item];
+                    if (!item || !item.transform) {
+                        continue;
+                    }
+                    if (!grupo || grupo.item !== item) {
+                        grupo = { item: item, desde: marca.offset, hasta: marca.offset + 1 };
+                        grupos.push(grupo);
+                    } else {
+                        grupo.hasta = marca.offset + 1;
+                    }
+                }
+                grupos.forEach(function (parte) {
+                    const rect = rectanguloDeFragmento(hoja._viewport, parte.item, parte.desde, parte.hasta);
+                    const div = document.createElement("div");
+                    div.className = "marca-busqueda" + (n === indiceAcierto ? " activa" : "");
+                    div.style.left = rect.left + "px";
+                    div.style.top = rect.top + "px";
+                    div.style.width = rect.width + "px";
+                    div.style.height = rect.height + "px";
+                    capa.appendChild(div);
+                });
+            });
+        }
+
+        function mostrarAciertoActual() {
+            pintarMarcas();
+            actualizarContador();
+            const activa = document.querySelector(".marca-busqueda.activa");
+            if (activa) {
+                activa.scrollIntoView({ behavior: "smooth", block: "center" });
+            }
+        }
+
+        function ejecutarBusqueda(irAlPrimero) {
+            const campo = document.getElementById("input-busqueda-pdf");
+            const consulta = campo ? campo.value.trim().toLowerCase() : "";
+            aciertos = [];
+            if (consulta && textoPorPagina.length) {
+                for (let p = 1; p < textoPorPagina.length; p++) {
+                    const datos = textoPorPagina[p];
+                    if (!datos) {
+                        continue;
+                    }
+                    let desde = 0;
+                    while (desde <= datos.cadena.length - consulta.length) {
+                        const en = datos.cadena.indexOf(consulta, desde);
+                        if (en < 0) {
+                            break;
+                        }
+                        aciertos.push({ pagina: p, inicio: en, fin: en + consulta.length });
+                        desde = en + consulta.length;
+                    }
+                }
+            }
+            if (irAlPrimero || indiceAcierto >= aciertos.length) {
+                indiceAcierto = 0;
+            }
+            pintarMarcas();
+            actualizarContador();
+            if (irAlPrimero && aciertos.length) {
+                const activa = document.querySelector(".marca-busqueda.activa");
+                if (activa) {
+                    activa.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+            }
+        }
+
+        function moverAcierto(delta) {
+            if (!aciertos.length) {
+                actualizarContador();
+                return;
+            }
+            indiceAcierto = (indiceAcierto + delta + aciertos.length) % aciertos.length;
+            mostrarAciertoActual();
+        }
+
+        function escaparHtml(texto) {
+            return String(texto)
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;");
+        }
+
+        function mostrarAvisoEnLienzo(texto) {
+            avisarPdf("—");
+            if (!cajaPaginasPdf) {
+                return;
+            }
+            cajaPaginasPdf.innerHTML = '<p class="aviso-pdf-lienzo">' + escaparHtml(texto) + '</p>';
+        }
+
+        function irAPaginaPdf(num) {
+            if (!pdfDoc) {
+                return;
+            }
+            paginaPdfActual = Math.max(1, Math.min(parseInt(num, 10) || 1, pdfDoc.numPages));
+            const hoja = cajaPaginasPdf && cajaPaginasPdf.querySelector('.pagina-pdf[data-pagina="' + paginaPdfActual + '"]');
+            if (hoja) {
+                hoja.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        }
+
+        let cargaSeq = 0;
+        let saltoInicialPendiente = true;
+        const rutasDocumento = {
+            principal: "",
+            guia: "",
+            material: ""
+        };
+
+        function salirDeVisorNativo() {
+            document.body.classList.remove("visor-nativo");
+            const marco = document.getElementById("marco-pdf-nativo");
+            if (!marco) {
+                return;
+            }
+            marco.hidden = true;
+            marco.removeAttribute("src");
+        }
+
+        function nombreCompacto(ruta) {
+            const archivo = String(ruta || "").split("/").pop() || "";
+            let texto = archivo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            texto = texto.replace(/\.[^.]+$/, "");
+            texto = texto.replace(/^(gr|pm)\b[\s._-]*/, "");
+            texto = texto.replace(/^\d+\s*[-_.]?\s*/, "");
+            return texto.replace(/[^a-z0-9]+/g, "");
+        }
+
+        function paresDeLetras(texto) {
+            const pares = [];
+            for (let i = 0; i < texto.length - 1; i++) {
+                pares.push(texto.slice(i, i + 2));
+            }
+            return pares;
+        }
+
+        function similitudNombres(a, b) {
+            if (!a || !b) {
+                return 0;
+            }
+            if (a === b) {
+                return 1;
+            }
+            const pa = paresDeLetras(a);
+            const pb = paresDeLetras(b);
+            if (!pa.length || !pb.length) {
+                return 0;
+            }
+            const cuenta = new Map();
+            pa.forEach(function (par) {
+                cuenta.set(par, (cuenta.get(par) || 0) + 1);
+            });
+            let comunes = 0;
+            pb.forEach(function (par) {
+                const n = cuenta.get(par) || 0;
+                if (n) {
+                    comunes += 1;
+                    cuenta.set(par, n - 1);
+                }
+            });
+            let nota = (2 * comunes) / (pa.length + pb.length);
+            if (Math.min(a.length, b.length) >= 6 && (a.indexOf(b) >= 0 || b.indexOf(a) >= 0)) {
+                const corto = Math.min(a.length, b.length);
+                const largo = Math.max(a.length, b.length);
+                nota = Math.max(nota, 0.72 + 0.28 * corto / largo);
+            }
+            const tope = Math.min(a.length, b.length, 14);
+            for (let largo = tope; largo >= 6; largo--) {
+                if (b.indexOf(a.slice(0, largo)) >= 0 || a.indexOf(b.slice(0, largo)) >= 0) {
+                    nota = Math.max(nota, 0.64 + largo / 50);
+                    break;
+                }
+            }
+            return nota;
+        }
+
+        function palabrasClave(ruta) {
+            let archivo = String(ruta || "").split("/").pop() || "";
+            archivo = archivo.replace(/\.[^.]+$/, "");
+            archivo = archivo.replace(/([a-z])([A-Z])/g, "$1 $2");
+            archivo = archivo.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+            archivo = archivo.replace(/^(gr|pm)\b[\s._-]*/, "");
+            archivo = archivo.replace(/^\d+\s*[-_.]?\s*/, "");
+            return archivo.split(/[^a-z0-9]+/).filter(function (palabra) {
+                return palabra.length >= 4 && palabra !== "para" && palabra !== "sobre" && palabra !== "sindrome";
+            });
+        }
+
+        function puntosPalabras(origen, candidato) {
+            const unas = palabrasClave(origen);
+            const otras = palabrasClave(candidato);
+            let puntos = 0;
+            unas.forEach(function (pa) {
+                otras.forEach(function (pb) {
+                    if (pa === pb) {
+                        puntos += 3;
+                        return;
+                    }
+                    let comunes = 0;
+                    const tope = Math.min(pa.length, pb.length);
+                    while (comunes < tope && pa.charAt(comunes) === pb.charAt(comunes)) {
+                        comunes += 1;
+                    }
+                    const largo = Math.max(pa.length, pb.length);
+                    if (comunes >= 6 && comunes / largo >= 0.55) {
+                        puntos += 2;
+                    }
+                });
+            });
+            return puntos;
+        }
+
+        function mejorCompanero(origen, candidatos) {
+            const base = nombreCompacto(origen);
+            let elegido = "";
+            let mejorNota = 0;
+            let mejorPuntos = 0;
+            let mejorValor = -1;
+            candidatos.forEach(function (ruta) {
+                if (decodificarRutaPdf(ruta) === decodificarRutaPdf(origen)) {
+                    return;
+                }
+                const puntos = puntosPalabras(origen, ruta);
+                const nota = similitudNombres(base, nombreCompacto(ruta));
+                const valor = nota + (puntos >= 3 ? 0.55 : 0);
+                if (valor > mejorValor) {
+                    mejorValor = valor;
+                    mejorNota = nota;
+                    mejorPuntos = puntos;
+                    elegido = ruta;
+                }
+            });
+            if (elegido && (mejorPuntos >= 3 || mejorNota >= 0.7)) {
+                return elegido;
+            }
+            return "";
+        }
+
+        function elegirCompanero(origen, candidatos) {
+            const mejor = mejorCompanero(origen, candidatos);
+            if (mejor) {
+                return mejor;
+            }
+            if (candidatos.length === 1) {
+                return candidatos[0];
+            }
+            return "";
+        }
+
+        async function listarPdfs(carpeta) {
+            const limpia = String(carpeta || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "") + "/";
+            try {
+                const respuesta = await fetch(new URL(encodeURI(limpia), window.location.href).href);
+                const tipo = (respuesta.headers.get("content-type") || "").toLowerCase();
+                if (!respuesta.ok || tipo.indexOf("html") < 0) {
+                    return [];
+                }
+                const html = await respuesta.text();
+                const encontrados = [];
+                const vistos = {};
+                const expresion = /href="([^"]+\.pdf)"/gi;
+                let coincidencia = expresion.exec(html);
+                while (coincidencia) {
+                    let href = coincidencia[1].split("?")[0].split("#")[0];
+                    try {
+                        href = decodeURIComponent(href);
+                    } catch (error) {
+                        /* el enlace ya venía legible */
+                    }
+                    href = href.replace(/\\/g, "/");
+                    let nombre = "";
+                    if (href.charAt(0) !== "/" && href.indexOf("..") < 0 && href.indexOf("/") < 0) {
+                        nombre = href;
+                    } else {
+                        const ruta = href.replace(/^\/+/, "");
+                        if (ruta.indexOf(limpia) === 0) {
+                            const resto = ruta.slice(limpia.length);
+                            if (resto && resto.indexOf("/") < 0) {
+                                nombre = resto;
+                            }
+                        }
+                    }
+                    if (nombre && !vistos[nombre]) {
+                        vistos[nombre] = true;
+                        encontrados.push(limpia + nombre);
+                    }
+                    coincidencia = expresion.exec(html);
+                }
+                return encontrados;
+            } catch (error) {
+                return [];
+            }
+        }
+
+        function pintarBotonesDocumento() {
+            const grupo = document.getElementById("grupo-botones-documento");
+            const actual = decodificarRutaPdf(urlPdf);
+            const pares = [
+                ["btn-doc-principal", rutasDocumento.principal],
+                ["btn-doc-guia", rutasDocumento.guia],
+                ["btn-doc-material", rutasDocumento.material]
+            ];
+            let alguno = false;
+            pares.forEach(function (par) {
+                const boton = document.getElementById(par[0]);
+                if (!boton) {
+                    return;
+                }
+                if (!par[1]) {
+                    boton.hidden = true;
+                    boton.classList.remove("activo");
+                    return;
+                }
+                boton.hidden = false;
+                alguno = true;
+                boton.classList.toggle("activo", decodificarRutaPdf(par[1]) === actual);
+            });
+            if (grupo) {
+                const hayBibliografia = grupo.querySelector(".btn-doc-biblio");
+                grupo.hidden = !alguno && !hayBibliografia;
+            }
+            marcarBotonesBibliografia();
+        }
+
+        function etiquetaBibliografia(ruta) {
+            const nombre = String(ruta || "").split("/").pop().toLowerCase();
+            if (nombre.indexOf("nurse") >= 0) {
+                return "DV Xi Nurse";
+            }
+            if (nombre.indexOf("surgeon") >= 0) {
+                return "DV Xi Surgeon";
+            }
+            if (nombre.indexOf("table") >= 0) {
+                return "DV Xi Table";
+            }
+            return String(ruta || "").split("/").pop().replace(/\.pdf$/i, "");
+        }
+
+        function ordenBibliografia(ruta) {
+            const etiqueta = etiquetaBibliografia(ruta);
+            if (etiqueta === "DV Xi Nurse") {
+                return 0;
+            }
+            if (etiqueta === "DV Xi Surgeon") {
+                return 1;
+            }
+            if (etiqueta === "DV Xi Table") {
+                return 2;
+            }
+            return 3;
+        }
+
+        function quitarBotonesBibliografia() {
+            document.querySelectorAll(".btn-doc-biblio").forEach(function (boton) {
+                boton.remove();
+            });
+        }
+
+        function ponerBotonesBibliografia(rutas) {
+            const grupo = document.getElementById("grupo-botones-documento");
+            quitarBotonesBibliografia();
+            if (!grupo) {
+                return;
+            }
+            rutas.slice().sort(function (a, b) {
+                return ordenBibliografia(a) - ordenBibliografia(b);
+            }).forEach(function (ruta) {
+                const boton = document.createElement("button");
+                boton.type = "button";
+                boton.className = "btn-doc-biblio";
+                boton.textContent = etiquetaBibliografia(ruta);
+                boton.setAttribute("data-ruta", ruta);
+                boton.addEventListener("click", function () {
+                    abrirDocumento(ruta);
+                });
+                grupo.appendChild(boton);
+            });
+        }
+
+        function marcarBotonesBibliografia() {
+            const actual = decodificarRutaPdf(urlPdf);
+            document.querySelectorAll(".btn-doc-biblio").forEach(function (boton) {
+                boton.classList.toggle("activo", decodificarRutaPdf(boton.getAttribute("data-ruta") || "") === actual);
+            });
+        }
+
+        async function prepararDocumentosAsociados() {
+            const actual = decodificarRutaPdf(urlPdf);
+            const trozos = actual.split("/");
+            const archivo = trozos.pop();
+            const carpeta = trozos[0] || "";
+            const sub = trozos.length > 1 ? trozos[trozos.length - 1] : "";
+            if (!carpeta || !archivo) {
+                return;
+            }
+            const [principales, guias, materiales] = await Promise.all([
+                listarPdfs(carpeta),
+                listarPdfs(carpeta + "/GuiaRapida"),
+                listarPdfs(carpeta + "/PeticionMaterial")
+            ]);
+            let principal = sub ? mejorCompanero(actual, principales) : actual;
+            if (!principal && principales.length === 1) {
+                principal = principales[0];
+            }
+            const ancla = principal || actual;
+            rutasDocumento.principal = principal;
+            rutasDocumento.guia = elegirCompanero(ancla, guias);
+            rutasDocumento.material = elegirCompanero(ancla, materiales);
+            if (sub === "GuiaRapida") {
+                rutasDocumento.guia = actual;
+            } else if (sub === "PeticionMaterial") {
+                rutasDocumento.material = actual;
+            }
+            if (carpeta === "0. Transversales") {
+                ponerBotonesBibliografia(await listarPdfs(carpeta + "/Bibliografia"));
+            } else {
+                quitarBotonesBibliografia();
+            }
+            pintarBotonesDocumento();
+        }
+
+        async function abrirDocumento(ruta) {
+            const destino = decodificarRutaPdf(ruta);
+            if (!destino || destino === decodificarRutaPdf(urlPdf)) {
+                pintarBotonesDocumento();
+                return;
+            }
+            urlPdf = destino;
+            try {
+                localStorage.setItem("ultimoPdf", destino);
+            } catch (error) {
+                /* el navegador no guarda la sesión */
+            }
+            const direccion = new URL(window.location.href);
+            direccion.searchParams.set("pdf", destino);
+            history.replaceState(null, "", direccion);
+            ponerTituloVisor(destino);
+            pintarBotonesDocumento();
+            const lienzo = document.getElementById("lienzo-pdf-wrap");
+            if (lienzo) {
+                lienzo.scrollTop = 0;
+            }
+            await cargarPdfEnCanvas();
+        }
+
+        async function cargarPdfEnCanvas() {
+            const seq = ++cargaSeq;
+            if (!urlPdf) {
+                return;
+            }
+            if (!/\.pdf$/i.test(decodificarRutaPdf(urlPdf))) {
+                mostrarAvisoEnLienzo("Este bloque no tiene un PDF para abrir.");
+                return;
+            }
+            if (!window.pdfjsLib) {
+                mostrarAvisoEnLienzo("No se pudo cargar el visor interno (pdf.js).");
+                return;
+            }
+            try {
+                salirDeVisorNativo();
+                pintadoId += 1;
+                if (pdfDoc && pdfDoc.destroy) {
+                    try {
+                        await pdfDoc.destroy();
+                    } catch (error) {
+                        /* el documento anterior ya estaba cerrado */
+                    }
+                }
+                pdfDoc = null;
+                avisarPdf("Cargando capítulo…");
+                const rutaPdf = decodificarRutaPdf(urlPdf);
+                const doc = await pdfjsLib.getDocument(new URL(encodeURI(rutaPdf), window.location.href).href).promise;
+                if (seq !== cargaSeq) {
+                    doc.destroy();
+                    return;
+                }
+                pdfDoc = doc;
+                await pintarTodasLasPaginas();
+                if (seq !== cargaSeq) {
+                    return;
+                }
+                if (saltoInicialPendiente) {
+                    saltoInicialPendiente = false;
+                    const destino = urlParams.get("pagina");
+                    if (destino) {
+                        irAPaginaPdf(destino);
+                    }
+                }
+            } catch (error) {
+                if (seq !== cargaSeq) {
+                    return;
+                }
+                pdfDoc = null;
+                console.error("PDF:", error);
+                abrirEnVisorNativo();
+            }
+        }
+
+        if (urlPdf) {
+            cargarPdfEnCanvas();
+            prepararDocumentosAsociados();
+        }
+
+        [
+            ["btn-doc-principal", "principal"],
+            ["btn-doc-guia", "guia"],
+            ["btn-doc-material", "material"]
+        ].forEach(function (par) {
+            const boton = document.getElementById(par[0]);
+            if (!boton) {
+                return;
+            }
+            boton.addEventListener("click", function () {
+                abrirDocumento(rutasDocumento[par[1]]);
+            });
+        });
+
+        let temporizadorZoom = null;
+        function cambiarZoom(nuevo) {
+            zoomUsuario = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(nuevo * 100) / 100));
+            actualizarInfoZoom();
+            clearTimeout(temporizadorZoom);
+            temporizadorZoom = setTimeout(function () {
+                pintarTodasLasPaginas();
+            }, 120);
+        }
+
+        if (urlPdf) {
+            cargarPdfEnCanvas();
+        }
+
+        document.getElementById("btn-zoom-menos").addEventListener("click", function () {
+            cambiarZoom(zoomUsuario - 0.15);
+        });
+        document.getElementById("btn-zoom-mas").addEventListener("click", function () {
+            cambiarZoom(zoomUsuario + 0.15);
+        });
+
+        const campoBusqueda = document.getElementById("input-busqueda-pdf");
+        campoBusqueda.addEventListener("input", function () {
+            aciertos = [];
+            indiceAcierto = 0;
+            limpiarMarcas();
+            actualizarContador();
+        });
+        campoBusqueda.addEventListener("keydown", function (evento) {
+            if (evento.key === "Enter") {
+                evento.preventDefault();
+                ejecutarBusqueda(true);
+            }
+        });
+        document.getElementById("btn-buscar-pdf").addEventListener("click", function () {
+            ejecutarBusqueda(true);
+        });
+        document.getElementById("btn-prev-buscar").addEventListener("click", function () {
+            moverAcierto(-1);
+        });
+        document.getElementById("btn-next-buscar").addEventListener("click", function () {
+            moverAcierto(1);
+        });
+
+        const wrapPdf = document.getElementById("lienzo-pdf-wrap");
+        wrapPdf.addEventListener("wheel", function (evento) {
+            if (!evento.ctrlKey) {
+                return;
+            }
+            evento.preventDefault();
+            cambiarZoom(zoomUsuario + (evento.deltaY < 0 ? 0.15 : -0.15));
+        }, { passive: false });
+
+        let temporizadorResize = null;
+        window.addEventListener("resize", function () {
+            if (!pdfDoc) {
+                return;
+            }
+            clearTimeout(temporizadorResize);
+            temporizadorResize = setTimeout(function () {
+                pintarTodasLasPaginas();
+            }, 250);
+        });
+    </script>
+</body>
+</html>
