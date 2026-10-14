@@ -747,18 +747,34 @@ body.visor-nativo .barra-pdfjs {
         font-size: 0.78rem;
     }
 
+    .barra-pdfjs {
+        max-width: 100%;
+        box-sizing: border-box;
+        gap: 0.35rem;
+        padding: 0.3rem 0.4rem;
+    }
+
     .barra-pdfjs .grupo-botones-documento {
         width: 100%;
+        max-width: 100%;
+        min-width: 0;
+        box-sizing: border-box;
         margin-left: 0;
         padding-left: 0;
         border-left: 0;
         justify-content: center;
-        flex-wrap: nowrap;
-        gap: 0.25rem;
+        flex-wrap: wrap;
+        gap: 0.22rem;
     }
 
     .barra-pdfjs .grupo-botones-documento button {
-        padding: 0.12rem 0.28rem;
-        font-size: 0.62rem;
+        padding: 0.08rem 0.2rem;
+        font-size: 0.56rem;
+    }
+
+    #input-busqueda-pdf {
+        min-width: 0;
+        flex: 1 1 6.5rem;
+        max-width: 100%;
     }
 }
