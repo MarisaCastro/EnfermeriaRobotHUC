@@ -1,0 +1,20 @@
+{
+  "name": "Enfermería Robot HUC",
+  "short_name": "Enf Robot HUC",
+  "start_url": "index.html",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#286E6E",
+  "icons": [
+    {
+      "src": "img/robot.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/robot.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
