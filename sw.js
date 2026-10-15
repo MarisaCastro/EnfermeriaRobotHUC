@@ -6,6 +6,7 @@ const ASSETS = [
   './style.css',
   './app.js',
   './manifest.json',
+  './indice-documentos.json',
   './img/robot.png',
   './js/pdfjs/pdf.min.js',
   './js/pdfjs/pdf.worker.min.js'

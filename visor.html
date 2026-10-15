@@ -542,8 +542,51 @@
             return "";
         }
 
+        let indiceDocumentosPromesa = null;
+
+        function cargarIndiceDocumentos() {
+            if (!indiceDocumentosPromesa) {
+                indiceDocumentosPromesa = fetch(new URL("indice-documentos.json", window.location.href).href)
+                    .then(function (respuesta) {
+                        if (!respuesta.ok) {
+                            return [];
+                        }
+                        return respuesta.json();
+                    })
+                    .then(function (datos) {
+                        return Array.isArray(datos) ? datos : [];
+                    })
+                    .catch(function () {
+                        return [];
+                    });
+            }
+            return indiceDocumentosPromesa;
+        }
+
+        function pdfsDeCarpeta(rutas, limpia) {
+            const encontrados = [];
+            const vistos = {};
+            rutas.forEach(function (ruta) {
+                const normal = String(ruta || "").replace(/\\/g, "/").replace(/^\/+/, "");
+                if (normal.indexOf(limpia) !== 0) {
+                    return;
+                }
+                const resto = normal.slice(limpia.length);
+                if (!resto || resto.indexOf("/") >= 0 || !/\.pdf$/i.test(resto) || vistos[normal]) {
+                    return;
+                }
+                vistos[normal] = true;
+                encontrados.push(normal);
+            });
+            return encontrados;
+        }
+
         async function listarPdfs(carpeta) {
             const limpia = String(carpeta || "").replace(/\\/g, "/").replace(/^\/+/, "").replace(/\/+$/, "") + "/";
+            const desdeIndice = pdfsDeCarpeta(await cargarIndiceDocumentos(), limpia);
+            if (desdeIndice.length) {
+                return desdeIndice;
+            }
             try {
                 const respuesta = await fetch(new URL(encodeURI(limpia), window.location.href).href);
                 const tipo = (respuesta.headers.get("content-type") || "").toLowerCase();
