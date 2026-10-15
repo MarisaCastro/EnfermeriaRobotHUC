@@ -807,7 +807,12 @@
                 pdfDoc = null;
                 avisarPdf("Cargando capítulo…");
                 const rutaPdf = decodificarRutaPdf(urlPdf);
-                const doc = await pdfjsLib.getDocument(new URL(encodeURI(rutaPdf), window.location.href).href).promise;
+                const doc = await pdfjsLib.getDocument({
+                    url: new URL(encodeURI(rutaPdf), window.location.href).href,
+                    disableRange: true,
+                    disableStream: true,
+                    disableAutoFetch: true
+                }).promise;
                 if (seq !== cargaSeq) {
                     doc.destroy();
                     return;
@@ -830,7 +835,8 @@
                 }
                 pdfDoc = null;
                 console.error("PDF:", error);
-                abrirEnVisorNativo();
+                salirDeVisorNativo();
+                mostrarAvisoEnLienzo("No se pudo abrir este PDF en el visor.");
             }
         }
 

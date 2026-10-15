@@ -44,24 +44,66 @@ function esPdf(request) {
   }
 }
 
+async function recortarPdf(respuesta, rango) {
+  const datos = await respuesta.clone().arrayBuffer();
+  const total = datos.byteLength;
+  const partes = /bytes=(\d*)-(\d*)/i.exec(rango || '');
+  let inicio = 0;
+  let fin = total - 1;
+  if (partes) {
+    if (partes[1] === '') {
+      const ultimos = parseInt(partes[2], 10) || 0;
+      inicio = Math.max(total - ultimos, 0);
+    } else {
+      inicio = parseInt(partes[1], 10) || 0;
+      if (partes[2] !== '') {
+        fin = parseInt(partes[2], 10);
+      }
+    }
+  }
+  if (fin >= total) {
+    fin = total - 1;
+  }
+  if (inicio < 0 || inicio >= total || inicio > fin) {
+    return new Response(null, {
+      status: 416,
+      headers: { 'Content-Range': 'bytes */' + total }
+    });
+  }
+  const trozo = datos.slice(inicio, fin + 1);
+  return new Response(trozo, {
+    status: 206,
+    statusText: 'Partial Content',
+    headers: {
+      'Content-Type': respuesta.headers.get('Content-Type') || 'application/pdf',
+      'Content-Length': String(trozo.byteLength),
+      'Content-Range': 'bytes ' + inicio + '-' + fin + '/' + total,
+      'Accept-Ranges': 'bytes'
+    }
+  });
+}
+
 async function responderPdf(request) {
   const cache = await caches.open(CACHE_NAME);
-  const guardado = await cache.match(request);
-  if (guardado) {
-    return guardado;
-  }
-
-  const cabeceras = new Headers(request.headers);
-  cabeceras.delete('Range');
-  const red = await fetch(new Request(request.url, { method: 'GET', headers: cabeceras }));
-  if (red && red.ok && red.status !== 206) {
+  const clave = new Request(request.url, { method: 'GET' });
+  let completo = await cache.match(clave);
+  if (!completo) {
+    const red = await fetch(clave);
+    if (!red || !red.ok || red.status === 206) {
+      return red;
+    }
     try {
-      await cache.put(request, red.clone());
+      await cache.put(clave, red.clone());
     } catch (error) {
       /* Si el dispositivo no admite mas datos, el PDF se muestra igual. */
     }
+    completo = red;
   }
-  return red;
+  const rango = request.headers.get('Range');
+  if (!rango) {
+    return completo;
+  }
+  return recortarPdf(completo, rango);
 }
 
 async function responderRedConCache(request) {
