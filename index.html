@@ -33,7 +33,7 @@
         </div>
     </header>
 
-    <p class="aviso-instalar" id="aviso-instalar" hidden>En el iPhone, ábrelo con Safari, pulsa Compartir y elige Añadir a pantalla de inicio.</p>
+    <p class="aviso-instalar" id="aviso-instalar" hidden>En el iPhone, ábrelo con Safari, pulsa Compartir y elige Añadir a pantalla de inicio. Los capítulos que abras con internet quedan después disponibles sin conexión.</p>
 
     <div class="contenedor-cabecera-bloques">
         <img src="img/robot.png" alt="Robot HUC" class="img-robot-fuera">
@@ -191,7 +191,12 @@
     <script>
       if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('sw.js')
-          .then(() => console.log('Service Worker registrado con éxito.'))
+          .then(() => {
+            console.log('Service Worker registrado con éxito.');
+            if (navigator.storage && navigator.storage.persist) {
+              navigator.storage.persist();
+            }
+          })
           .catch(err => console.error('Error al registrar Service Worker:', err));
       }
       var avisoInstalar = document.getElementById('aviso-instalar');
