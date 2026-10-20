@@ -8,6 +8,9 @@ const ASSETS = [
   './manifest.json',
   './indice-documentos.json',
   './img/robot.png',
+  './img/icono-180.png',
+  './img/icono-192.png',
+  './img/icono-512.png',
   './js/pdfjs/pdf.min.js',
   './js/pdfjs/pdf.worker.min.js'
 ];

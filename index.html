@@ -19,8 +19,9 @@
     <meta name="mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="apple-mobile-web-app-title" content="Enfermería Robot HUC">
+    <meta name="apple-mobile-web-app-title" content="Enf Robot HUC">
     <link rel="manifest" href="manifest.json">
+    <link rel="apple-touch-icon" sizes="180x180" href="img/icono-180.png">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -31,6 +32,8 @@
             <p>Cuidados de enfermería en cirugía robótica</p>
         </div>
     </header>
+
+    <p class="aviso-instalar" id="aviso-instalar" hidden>En el iPhone, ábrelo con Safari, pulsa Compartir y elige Añadir a pantalla de inicio.</p>
 
     <div class="contenedor-cabecera-bloques">
         <img src="img/robot.png" alt="Robot HUC" class="img-robot-fuera">
@@ -190,6 +193,12 @@
         navigator.serviceWorker.register('sw.js')
           .then(() => console.log('Service Worker registrado con éxito.'))
           .catch(err => console.error('Error al registrar Service Worker:', err));
+      }
+      var avisoInstalar = document.getElementById('aviso-instalar');
+      var esIphone = /iphone|ipad|ipod/i.test(navigator.userAgent);
+      var yaInstalada = window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches;
+      if (avisoInstalar && esIphone && !yaInstalada) {
+        avisoInstalar.hidden = false;
       }
     </script>
 </body>
